@@ -1,3 +1,4 @@
+// Hataların işlenmesi için AppError sınıfının oluşturulması
 class AppError extends Error {
   constructor(message, statusCode) {
     super(message);

@@ -1,7 +1,7 @@
 const nodemailer = require('nodemailer');
 
 const sendEmail = async (options) => {
-  // Create a transporter
+  // Taşıyıcının oluşturulması
   const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
     port: process.env.EMAIL_PORT,
@@ -11,15 +11,15 @@ const sendEmail = async (options) => {
     },
   });
 
-  // Define e mail options
+  // Mail seçeneklerinin oluşturulması
   const mailOptions = {
     from: 'Yunus Emre TOSUN',
     to: options.email,
     subject: options.subject,
     text: options.message,
-    // html:
   };
-  // Send e-mail
+  
+  // Mailin gönderilmesi
   await transporter.sendMail(mailOptions);
 };
 

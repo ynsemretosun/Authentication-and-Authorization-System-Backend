@@ -1,6 +1,7 @@
 const passport = require('passport');
 const FacebookStrategy = require('passport-facebook').Strategy;
 passport.use(
+  // Facebook OAuth 2.0 konfigürasyonunun yapılandırılması
   new FacebookStrategy(
     {
       clientID: process.env.FACEBOOK_CLIENT_ID,
@@ -9,6 +10,7 @@ passport.use(
       profileFields: ['id', 'displayName', 'photos', 'email'],
     },
     (accessToken, refreshToken, profile, done) => {
+      // Profil bilgilerinin alınması
       profile = {
         id: profile.id,
         displayName: profile.displayName,
@@ -18,11 +20,12 @@ passport.use(
           'Photo not provided',
         userType: 'Facebook User',
       };
-      done(null, profile);
+      done(null, profile); // Profil bilgilerinin döndürülmesi
     }
   )
 );
 
+// Passport'un serialize ve deserialize işlemlerinin yapılandırılması
 passport.serializeUser((profile, done) => {
   done(null, profile);
 });

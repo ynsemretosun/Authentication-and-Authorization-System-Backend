@@ -1,12 +1,13 @@
 const ldap = require('ldapjs');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
-const assert = require('assert');
-const parsedEntry = require('../utils/parseEntry');
-const jwt = require('jsonwebtoken');
-const { promisify } = require('util');
+const parseEntry = require('../utils/parseEntry');
+const resolveGUID = require('../utils/resolveGUID');
+const getCNNames = require('../utils/getCNNames');
+
 const authenticate = (username, password) => {
   return new Promise((resolve, reject) => {
+    // ldap için client oluşturulması
     const client = ldap.createClient({
       url: 'ldaps://192.168.1.240:636',
       connectTimeout: 10000,
@@ -14,12 +15,15 @@ const authenticate = (username, password) => {
       tlsOptions: { rejectUnauthorized: false },
     });
 
+    // ldap sunucusuna bağlanma işlemi
     const dn = `${username}@${process.env.LDAP_BASELOGONNAMESUFFIX}`;
     client.bind(dn, password, (err) => {
       if (err) {
         return reject(new AppError('LDAP authentication failed.', 401));
       }
     });
+
+    // ldap sunucusundan kullanıcı bilgilerinin alınması
     searchUser(client, username)
       .then((user) => {
         resolve(user);
@@ -28,13 +32,6 @@ const authenticate = (username, password) => {
         reject(err);
       });
   });
-
-  //   const user = client.search(username, {
-  //     scope: 'base',
-  //     attributes: ['uid', 'dn', 'cn', 'mail'],
-  //   });
-  //   console.log(user);
-  //   return 'giriş başarılı';
 };
 
 const logout = catchAsync(async (req, res) => {
@@ -62,35 +59,7 @@ function bindClient(client, dn, password) {
     });
   });
 }
-function resolveGUID(entry) {
-  if (!Array.isArray(entry.attributes))
-    throw new Error('Attributes must be an array');
 
-  const binaryGUID = entry.attributes.find(
-    (attribute) => attribute.type === 'objectGUID'
-  ).buffers[0];
-  const guidFormat = [
-    [3, 2, 1, 0],
-    [5, 4],
-    [7, 6],
-    [8, 9],
-    [10, 11, 12, 13, 14, 15],
-  ];
-
-  const guidArray = guidFormat.map((part) => {
-    const stringPart = part.map((byte) => {
-      // If less than 16 add a 0 to the end
-      const byteString =
-        binaryGUID[byte] < 16
-          ? `0${binaryGUID[byte].toString(16)}`
-          : binaryGUID[byte].toString(16);
-
-      return byteString;
-    });
-    return `${stringPart.join('')}`;
-  });
-  return guidArray.join('-');
-}
 function parseGuid(guidString) {
   // Split the GUID string into its parts separated by hyphens
   const parts = guidString.split('-');
@@ -156,21 +125,16 @@ function parseGuid(guidString) {
 //     });
 //   });
 // }
-const getCNNames = (groups) => {
-  return groups.map((group) => {
-    const cnPart = group.split(',')[0]; // İlk CN parçasını al
-    return cnPart.split('=')[1]; // "=" karakterinden sonrasını al
-  });
-};
 
 function searchUser(client, username) {
   return new Promise((resolve, reject) => {
+    // Arama seçeneklerinin oluşturulması
     const searchOptions = {
       scope: 'subtree',
       filter: `(userPrincipalName=${username}@${process.env.LDAP_BASELOGONNAMESUFFIX})`,
       attributes: ['cn', 'displayName', 'mail', 'memberOf', 'objectGUID', 'sn'],
     };
-
+    // Arama işleminin gerçekleştirilmesi
     client.search(process.env.LDAP_BASEDN, searchOptions, (searchErr, res) => {
       if (searchErr) {
         return reject(new AppError('Failed to search user information.'));
@@ -179,17 +143,19 @@ function searchUser(client, username) {
       let user = null;
 
       res.on('searchEntry', (entry) => {
+        // Arama sonucundan dönen kullanıcı bilgilerinin ayrıştırılması
         const parsedEntry = parseEntry(entry.attributes);
-        parsedEntry.objectGUID = resolveGUID(entry);
+        parsedEntry.objectGUID = resolveGUID(entry); // binary GUID'i string GUID'e çevir
 
+        // Kullanıcı bilgilerinin JSON formatına dönüştürülmesi
         user = {
           id: parsedEntry.objectGUID,
           displayName: parsedEntry.displayName[0],
-          groups: getCNNames(parsedEntry.memberOf),
+          groups: getCNNames(parsedEntry.memberOf), // Grup isimlerinin okunabilecek hale getirilmesi
           email: parsedEntry.mail[0],
           userType: 'LDAP User',
           photo: 'Photo not provided',
-          role: 'admin',
+          role: 'admin', // Erişim kısıtlı servisleri denemek için admin rolü verildi
         };
       });
 
@@ -197,6 +163,7 @@ function searchUser(client, username) {
         reject(new AppError('Search operation failed.'));
       });
 
+      // Arama işlemi sona erdiğinde kullanıcı bilgilerinin döndürülmesi
       res.on('end', () => {
         if (user) {
           resolve(user);

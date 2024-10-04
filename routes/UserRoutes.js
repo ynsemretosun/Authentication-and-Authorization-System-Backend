@@ -1,44 +1,34 @@
 const express = require('express');
 const authController = require('../controllers/authController');
 const router = express.Router();
-const ldapService = require('../services/ldapService');
-const oauthService = require('../services/oauthService-google');
 const passport = require('passport');
-const otpTest = require('../services/otpTest');
 const cookieParser = require('cookie-parser');
-const otpService = require('../services/otpService');
 router.use(cookieParser());
 router.post('/login', authController.loginWithLdap);
 router.post('/verifyOtp', authController.verifyOtp);
 router.get('/resendOtp', authController.resendOtp);
 router.get(
   '/auth/google',
-  passport.authenticate('google', { scope: ['profile', 'email'] })
+  passport.authenticate('google', { scope: ['profile', 'email'] }) // Google OAuth 2.0 ile kimlik doğrulama
 );
+router.get('/auth/google/callback', authController.googleCallback);
 router.get('/logout', authController.logout);
 router.get(
   '/auth/github',
-  passport.authenticate('github', { scope: ['user:email'] })
+  passport.authenticate('github', { scope: ['user:email'] }) // GitHub OAuth 2.0 ile kimlik doğrulama
 );
+router.get('/auth/github/callback', authController.githubCallback);
 router.get(
   '/auth/facebook',
   passport.authenticate('facebook', { scope: ['email', 'public_profile'] })
 );
-router.get('/auth/google/callback', authController.googleCallback);
-router.get('/auth/github/callback', authController.githubCallback);
 router.get('/auth/facebook/callback', authController.facebookCallback);
-
-router.get('/auth/google/failure', authController.googleFailure);
 router.get('/profile', authController.getUser);
 
-// router.get('/logout', (req, res) => {
-//   req.logout();
-//   res.status(200).json({ message: 'Logged out successfully!' });
-// });
 router.get(
   '/protected',
   authController.protect,
-  authController.restrictedTo('AdMin'),
+  authController.restrictedTo('user', 'admin'),
   (req, res) => {
     res.status(200).json({
       status: 'success',
@@ -46,8 +36,4 @@ router.get(
     });
   }
 );
-
-router.get('/hi', (req, res) => {
-  res.status(200).json({ message: 'Hello World!' });
-});
 module.exports = router;

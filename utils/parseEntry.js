@@ -1,4 +1,5 @@
-module.exports = parseEntry = (entry) => {
+// LDAP'tan dönen bilgilerin parçalanması
+module.exports = (entry) => {
   const parsedEntry = {};
 
   entry.forEach((attr) => {

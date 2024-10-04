@@ -1,14 +1,15 @@
 const mongoose = require('mongoose');
 const validator = require('validator');
+// Loglama için şema oluşturulması
 const logSchema = new mongoose.Schema({
   timestamp: {
     type: Date,
     default: Date.now,
-    expires: 60 * 60 * 24 * 30,
+    expires: 60 * 60 * 24 * 30, // 30 gün sonra silinecek
   },
   method: {
     type: String,
-    enum: ['GET', 'POST', 'PUT', 'PATCH'],
+    enum: ['GET', 'POST', 'PUT', 'PATCH'], // Yalnızca belirtilen HTTP metodları kabul edilecek
     required: [true, 'Please provide the HTTP method!'],
   },
   url: {
@@ -30,7 +31,11 @@ const logSchema = new mongoose.Schema({
   ip: {
     type: String,
     required: [true, 'Please provide the IP address!'],
-    validate: [validator.isIP, 'Please provide a valid IP address!'],
+    validate: [validator.isIP, 'Please provide a valid IP address!'], // IP adresi formatı kontrolü
+  },
+  contentLength: {
+    type: Number,
+    required: [true, 'Please provide the content length!'],
   },
   service: String,
   userType: String,
